@@ -57,77 +57,12 @@ def login(request):
         pass
 
     return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
+from Crypto.Random import get_random_bytes
+import cloudinary.uploader
 
-# ✅ Upload File API (Requires Authentication)
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-@parser_classes([MultiPartParser, FormParser])
-def upload_file(request):
-    print("✅ Received Upload Request")
 
-    if 'file' not in request.FILES:
-        return Response({'error': 'No file uploaded'}, status=status.HTTP_400_BAD_REQUEST)
-
-    file = request.FILES['file']
-    page_size = request.data.get('page_size', 'A4')
-    num_copies = int(request.data.get('num_copies', 1))
-    print_type = request.data.get('print_type', 'black_white')
-    store_id = request.data.get('store_id')
-
-    user = request.user
-    print(f"👤 User: {user}")
-
-    # ✅ Validate Store Selection
-    if not store_id:
-        return Response({'error': 'Please select a store'}, status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-        store = Store.objects.get(id=store_id)
-    except Store.DoesNotExist:
-        return Response({'error': 'Selected store does not exist'}, status=status.HTTP_400_BAD_REQUEST)
-
-    # ✅ Save File
-    file_path = f"uploads/{file.name}"
-    saved_path = default_storage.save(file_path, ContentFile(file.read()))
-
-    # ✅ Extract Page Count if PDF
-    page_count = 1
-    if file.name.lower().endswith('.pdf'):
-        try:
-            full_path = default_storage.path(saved_path)
-            with fitz.open(full_path) as pdf:
-                page_count = pdf.page_count
-        except Exception as e:
-            return Response({'error': f'Failed to process PDF: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
-
-    # ✅ Save Print Order
-    try:
-        print_order = PrintOrder.objects.create(
-            user=user,
-            store=store,
-            file=file,
-            file_name=file.name,
-            file_path=saved_path,
-            page_size=page_size,
-            num_copies=num_copies,
-            print_type=print_type,
-            num_pages=page_count,
-            status="pending"
-        )
-        print(f"✅ Print Order Created for Store: {store.name}", print_order)
-    except Exception as e:
-        return Response({'error': 'Could not save order'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    return Response({
-        'message': 'File uploaded successfully',
-        'order_id': print_order.id,
-        'file_name': print_order.file_name,
-        'page_size': print_order.page_size,
-        'num_copies': print_order.num_copies,
-        'print_type': print_order.print_type,
-        'num_pages': print_order.num_pages,
-        'store': print_order.store.name,
-    }, status=status.HTTP_201_CREATED)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])  # ✅ Ensure authentication is required
@@ -228,3 +163,111 @@ def store_login(request):
         })
     else:
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+import os
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
+from base64 import b64encode
+import cloudinary.uploader
+
+def encrypt_file(file_data, key):
+    iv = os.urandom(16)  # Generate random IV
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    encrypted_data = cipher.encrypt(pad(file_data, AES.block_size))
+    return iv + encrypted_data
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def upload_file(request):
+    print("✅ Received Upload Request")
+
+    if 'file' not in request.FILES:
+        return Response({'error': 'No file uploaded'}, status=status.HTTP_400_BAD_REQUEST)
+
+    file = request.FILES['file']
+    page_size = request.data.get('page_size', 'A4')
+    num_copies = int(request.data.get('num_copies', 1))
+    print_type = request.data.get('print_type', 'black_white')
+    store_id = request.data.get('store_id')
+
+    user = request.user
+    print(f"👤 User: {user}")
+
+    try:
+        store = Store.objects.get(id=store_id)
+    except Store.DoesNotExist:
+        return Response({'error': 'Selected store does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # ✅ Read and Encrypt File Data
+    file_data = file.read()
+    aes_key = get_random_bytes(32)  # Generate a new AES key
+    iv = get_random_bytes(16)       # Generate IV
+    encrypted_data = encrypt_file(file_data, aes_key)
+
+    # ✅ Upload Encrypted File to Cloudinary
+    try:
+        encrypted_file_path = f"encrypted_{file.name}"
+        with open(encrypted_file_path, "wb") as f:
+            f.write(encrypted_data)
+
+        response = cloudinary.uploader.upload(
+            encrypted_file_path,
+            resource_type="raw",
+            folder="uploads/"
+        )
+        print("✅ File uploaded to Cloudinary:", response['secure_url'])
+        cloudinary_url = response['secure_url']
+
+        # Remove local encrypted file after upload
+        os.remove(encrypted_file_path)
+
+    except Exception as e:
+        print(f"❌ Error uploading to Cloudinary: {str(e)}")
+        return Response({'error': f'Failed to upload to Cloudinary: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # ✅ Save Print Order with Encryption Details
+    print_order = PrintOrder.objects.create(
+        user=user,
+        store=store,
+        file_name=file.name,
+        file_path=cloudinary_url,
+        page_size=page_size,
+        num_copies=num_copies,
+        print_type=print_type,
+        num_pages=1,
+        status="pending"
+    )
+
+    return Response({
+        'message': 'File uploaded and encrypted successfully',
+        'order_id': print_order.id,
+        'file_name': print_order.file_name,
+        'store': print_order.store.name,
+        'aes_key': b64encode(aes_key).decode(),
+        'iv': b64encode(iv).decode()
+    }, status=status.HTTP_201_CREATED)
+
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def get_decryption_key(request):
+    order_id = request.data.get('order_id')
+    try:
+        order = PrintOrder.objects.get(id=order_id)
+        # Provide the AES key securely
+        return Response({'aes_key': 'your-32-byte-secret-key-here'})
+    except PrintOrder.DoesNotExist:
+        return Response({'error': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+from Crypto.Util.Padding import unpad
+
+def decrypt_file(encrypted_data, key):
+    iv = encrypted_data[:16]  # Extract IV from the start
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    decrypted_data = unpad(cipher.decrypt(encrypted_data[16:]), AES.block_size)
+    return decrypted_data
