@@ -14,21 +14,26 @@ class Store(models.Model):
 
 # Print Order Model
 class PrintOrder(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)  # ✅ Link order to user
-    store = models.ForeignKey(Store, on_delete=models.CASCADE, null=True, blank=True)  # ✅ Store Selection
-    file = CloudinaryField('file', folder='uploads/')  # ✅ Cloudinary File Upload
+    user = models.ForeignKey(User, on_delete=models.CASCADE)  
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, null=True, blank=True)  
+    file = CloudinaryField('file', folder='uploads/')  
     file_name = models.CharField(max_length=255)
     file_path = models.CharField(max_length=255)
     page_size = models.CharField(max_length=10, choices=[('A4', 'A4'), ('A3', 'A3')])
     num_copies = models.IntegerField(default=1)
     print_type = models.CharField(max_length=20, choices=[('black_white', 'Black & White'), ('color', 'Color')])
-    num_pages = models.IntegerField(default=1)  # ✅ Added field for total pages
+    num_pages = models.IntegerField(default=1)  
     status = models.CharField(
         max_length=20,
         choices=[('pending', 'Pending'), ('printing', 'Printing'), ('completed', 'Completed')],
         default='pending'
-    )  # ✅ Track order status
+    )  
     uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    # ✅ AES Encryption Fields
+    aes_key = models.BinaryField(null=True, blank=True)  # Encrypted AES key (Binary Data)
+    iv = models.BinaryField(null=True, blank=True)       # Initialization Vector (IV)
+    is_encrypted = models.BooleanField(default=False)    # Track if file is encrypted
 
     def total_cost(self):
         """Calculate cost based on print type."""
