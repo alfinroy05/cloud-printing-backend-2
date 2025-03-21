@@ -129,19 +129,18 @@ def upload_file(request):
         'store': print_order.store.name,
     }, status=status.HTTP_201_CREATED)
 
-# ✅ Fetch Print Orders (Requires Authentication)
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from .models import PrintOrder
-from .serializers import PrintOrderSerializer
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])  # ✅ Ensure authentication is required
 def get_orders(request):
-    orders = PrintOrder.objects.all().order_by('-id')  # ✅ Get all orders (latest first)
-    serializer = PrintOrderSerializer(orders, many=True)  # ✅ Serialize the data
+    # ✅ Check if the user is an admin (staff)
+    if request.user.is_staff:
+        orders = PrintOrder.objects.all().order_by('-id')  # ✅ Admin can view all orders
+    else:
+        orders = PrintOrder.objects.filter(user=request.user).order_by('-id')  # ✅ Regular users only view their orders
+    
+    serializer = PrintOrderSerializer(orders, many=True)
     return Response(serializer.data)
+
 
 
 # ✅ Fetch Available Stores
@@ -164,3 +163,68 @@ def update_payment_status(request):
         return Response({"message": "Payment successful, order updated!"}, status=status.HTTP_200_OK)
     except PrintOrder.DoesNotExist:
         return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+from django.shortcuts import render
+from django.contrib.auth.models import User
+from django.http import JsonResponse
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+import fitz  # PyMuPDF for reading PDFs
+
+from rest_framework.decorators import api_view, permission_classes, parser_classes
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import authenticate
+
+from .models import PrintOrder, Store
+from .serializers import PrintOrderSerializer, StoreSerializer
+
+from django.contrib.auth.models import User
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Store
+from rest_framework_simplejwt.tokens import RefreshToken
+
+# ✅ Store Registration API
+@api_view(['POST'])
+def store_register(request):
+    username = request.data.get('username')
+    password = request.data.get('password')
+    store_name = request.data.get('storeName')
+    location = request.data.get('location')
+    contact = request.data.get('contact')
+
+    # ✅ Check if username already exists
+    if User.objects.filter(username=username).exists():
+        return Response({'error': 'Username already exists'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # ✅ Create User
+    user = User.objects.create_user(username=username, password=password)
+
+    # ✅ Create Store
+    store = Store.objects.create(name=store_name, location=location, contact=contact, admin=user)
+
+    return Response({'message': 'Store registered successfully!'}, status=status.HTTP_201_CREATED)
+
+
+# ✅ Store Login API
+@api_view(['POST'])
+def store_login(request):
+    username = request.data.get('username')
+    password = request.data.get('password')
+
+    user = authenticate(username=username, password=password)
+    if user is not None:
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+            'user': {'id': user.id, 'username': user.username}
+        })
+    else:
+        return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
