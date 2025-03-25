@@ -70,11 +70,14 @@ def get_orders(request):
     # ✅ Check if the user is an admin (staff)
     if request.user.is_staff:
         orders = PrintOrder.objects.all().order_by('-id')  # ✅ Admin can view all orders
+    elif hasattr(request.user, 'store'):  # ✅ Store can view its orders
+        orders = PrintOrder.objects.filter(store=request.user.store).order_by('-id')
     else:
         orders = PrintOrder.objects.filter(user=request.user).order_by('-id')  # ✅ Regular users only view their orders
     
     serializer = PrintOrderSerializer(orders, many=True)
     return Response(serializer.data)
+
 
 
 
