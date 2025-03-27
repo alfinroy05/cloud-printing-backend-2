@@ -18,8 +18,8 @@ class PrintOrderSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'store_name', 'file_name', 'file_path', 'page_size', 
                   'num_copies', 'print_type', 'num_pages', 'status', 'uploaded_at']
 
-# ✅ Store Serializer
+# ✅ Store Serializer (with Latitude and Longitude)
 class StoreSerializer(serializers.ModelSerializer):
     class Meta:
         model = Store
-        fields = ['id', 'name', 'location', 'contact']
+        fields = ['id', 'name', 'location', 'contact', 'latitude', 'longitude']

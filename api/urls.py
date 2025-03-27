@@ -10,6 +10,6 @@ urlpatterns = [
     path('store/login/', store_login, name='store_login'),
     path('orders/', get_orders, name='get_orders'),
     path('upload/', upload_file, name='upload_file'),
-    path('stores/', get_stores, name='get_stores'),
-    
+    path('stores/', get_stores, name='get_stores'),  
+    path('api/stores/', get_stores, name='api_get_stores'),  # Keeping the API path with a unique name
 ]

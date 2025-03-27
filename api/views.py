@@ -80,13 +80,46 @@ def get_orders(request):
 
 
 
+from geopy.distance import geodesic
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .models import Store
+from .serializers import StoreSerializer
 
-# ✅ Fetch Available Stores
+# ✅ Fetch Available Stores (With Optional Location Filtering)
+from geopy.distance import geodesic
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .models import Store
+from .serializers import StoreSerializer
+
 @api_view(['GET'])
 def get_stores(request):
-    stores = Store.objects.all()
-    serializer = StoreSerializer(stores, many=True)
-    return Response(serializer.data)
+    latitude = request.GET.get('latitude')
+    longitude = request.GET.get('longitude')
+    radius = float(request.GET.get('radius', 10))  # Default radius is 10 km
+
+    # Validate Coordinates
+    try:
+        if latitude and longitude:
+            user_location = (float(latitude), float(longitude))
+            stores = []
+
+            for store in Store.objects.all():
+                if store.latitude is not None and store.longitude is not None:
+                    store_location = (store.latitude, store.longitude)
+                    distance = geodesic(user_location, store_location).km
+                    if distance <= radius:
+                        stores.append(store)
+        else:
+            stores = Store.objects.all()
+
+        serializer = StoreSerializer(stores, many=True)
+        return Response(serializer.data)
+
+    except (ValueError, TypeError):
+        return Response({"error": "Invalid coordinates or data type"}, status=400)
+
 
 # ✅ Update Payment Status (Requires Authentication)
 @api_view(['POST'])
