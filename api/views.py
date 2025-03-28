@@ -81,12 +81,18 @@ def get_orders(request):
 
 
 
-# ✅ Fetch Available Stores
+# ✅ Fetch Stores with Coordinates for Map
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .models import Store
+from .serializers import StoreSerializer
+
 @api_view(['GET'])
 def get_stores(request):
     stores = Store.objects.all()
     serializer = StoreSerializer(stores, many=True)
     return Response(serializer.data)
+
 
 # ✅ Update Payment Status (Requires Authentication)
 @api_view(['POST'])
@@ -193,7 +199,11 @@ def upload_file(request):
     page_size = request.data.get('page_size', 'A4')
     num_copies = int(request.data.get('num_copies', 1))
     print_type = request.data.get('print_type', 'black_white')
+    num_pages = int(request.data.get('num_pages', 1))
     store_id = request.data.get('store_id')
+
+    if not store_id:
+        return Response({'error': 'Store ID is required'}, status=status.HTTP_400_BAD_REQUEST)
 
     user = request.user
     print(f"👤 User: {user}")
@@ -239,7 +249,7 @@ def upload_file(request):
         page_size=page_size,
         num_copies=num_copies,
         print_type=print_type,
-        num_pages=1,
+        num_pages=num_pages,
         status="pending"
     )
 
@@ -251,7 +261,6 @@ def upload_file(request):
         'aes_key': b64encode(aes_key).decode(),
         'iv': b64encode(iv).decode()
     }, status=status.HTTP_201_CREATED)
-
 
 
 @api_view(['POST'])
@@ -274,3 +283,8 @@ def decrypt_file(encrypted_data, key):
     cipher = AES.new(key, AES.MODE_CBC, iv)
     decrypted_data = unpad(cipher.decrypt(encrypted_data[16:]), AES.block_size)
     return decrypted_data
+
+
+from django.http import JsonResponse
+from .models import Store
+

@@ -8,6 +8,8 @@ class Store(models.Model):
     name = models.CharField(max_length=255)
     location = models.CharField(max_length=255)
     contact = models.CharField(max_length=100)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.name} ({self.location})"
