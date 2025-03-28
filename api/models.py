@@ -2,25 +2,15 @@ from django.db import models
 from django.contrib.auth.models import User
 import cloudinary
 from cloudinary.models import CloudinaryField
-# Store Model
-from django.db import models
 
+# Store Model
 class Store(models.Model):
-    name = models.CharField(max_length=255, verbose_name="Store Name")
-    location = models.CharField(max_length=255, verbose_name="Store Location")
-    contact = models.CharField(max_length=100, verbose_name="Contact Number")
-    latitude = models.FloatField(null=True, blank=True, verbose_name="Latitude")
-    longitude = models.FloatField(null=True, blank=True, verbose_name="Longitude")
+    name = models.CharField(max_length=255)
+    location = models.CharField(max_length=255)
+    contact = models.CharField(max_length=100)
 
     def __str__(self):
-        return f"{self.name} - {self.location}"
-
-    class Meta:
-        verbose_name = "Store"
-        verbose_name_plural = "Stores"
-        ordering = ['name']
-
-
+        return f"{self.name} ({self.location})"
 
 # Print Order Model
 class PrintOrder(models.Model):
