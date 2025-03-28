@@ -64,19 +64,28 @@ import cloudinary.uploader
 
 
 
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .models import PrintOrder
+from .serializers import PrintOrderSerializer
+
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])  # ✅ Ensure authentication is required
+@permission_classes([IsAuthenticated])  # Ensure authentication is required
 def get_orders(request):
-    # ✅ Check if the user is an admin (staff)
+    # Check if the user is an admin (staff)
     if request.user.is_staff:
-        orders = PrintOrder.objects.all().order_by('-id')  # ✅ Admin can view all orders
-    elif hasattr(request.user, 'store'):  # ✅ Store can view its orders
+        orders = PrintOrder.objects.all().order_by('-id')  # Admin can view all orders
+    elif hasattr(request.user, 'store'):  # Store can view its orders
         orders = PrintOrder.objects.filter(store=request.user.store).order_by('-id')
     else:
-        orders = PrintOrder.objects.filter(user=request.user).order_by('-id')  # ✅ Regular users only view their orders
-    
+        orders = PrintOrder.objects.filter(user=request.user).order_by('-id')  # Regular users can only view their orders
+
+    # Serialize the orders, but you may want to exclude sensitive fields like tokens
     serializer = PrintOrderSerializer(orders, many=True)
+    
     return Response(serializer.data)
+
 
 
 
