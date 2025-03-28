@@ -10,6 +10,7 @@ urlpatterns = [
     path('store/login/', store_login, name='store_login'),
     path('orders/', get_orders, name='get_orders'),
     path('upload/', upload_file, name='upload_file'),
-    path('stores/', get_stores, name='get_stores'),
+  
+    path('shops/', get_stores, name='get_stores'),
     
 ]

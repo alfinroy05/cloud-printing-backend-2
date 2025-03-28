@@ -22,4 +22,4 @@ class PrintOrderSerializer(serializers.ModelSerializer):
 class StoreSerializer(serializers.ModelSerializer):
     class Meta:
         model = Store
-        fields = ['id', 'name', 'location', 'contact']
+        fields = ['id', 'name', 'location', 'contact', 'latitude', 'longitude']
