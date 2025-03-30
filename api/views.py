@@ -288,3 +288,23 @@ def decrypt_file(encrypted_data, key):
 from django.http import JsonResponse
 from .models import Store
 
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .models import PrintOrder
+
+@api_view(['POST'])
+def update_order_status(request):
+    order_id = request.data.get('order_id')
+    status = request.data.get('status')
+
+    if not order_id or not status:
+        return Response({'error': 'order_id and status are required'}, status=400)
+
+    try:
+        order = Order.objects.get(id=order_id)
+        order.status = status
+        order.save()
+        return Response({'message': 'Order status updated successfully'})
+    except Order.DoesNotExist:
+        return Response({'error': 'Order not found'}, status=404)

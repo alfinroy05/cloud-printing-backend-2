@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import home, register, login, upload_file, get_orders, get_stores, store_register, store_login
+from .views import home, register, login, upload_file, get_orders, get_stores, store_register, store_login,update_order_status
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 urlpatterns = [
@@ -12,5 +12,5 @@ urlpatterns = [
     path('upload/', upload_file, name='upload_file'),
   
     path('shops/', get_stores, name='get_stores'),
-    
+    path('update_order_status/', update_order_status, name='update_order_status'),
 ]

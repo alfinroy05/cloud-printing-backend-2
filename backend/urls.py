@@ -9,6 +9,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', redirect_to_api),  # ✅ Redirects `/` to `/api/`
     path('api/', include('api.urls')),
-  
+    
 
 ]
